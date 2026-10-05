@@ -849,12 +849,18 @@ async function sendFollowRecheckAck({
       "NX"
     );
     if (first !== "OK") return;
+    const send = () =>
+      sendDirectMessage({ context, instagramAccountId, userId, message });
+    if (!operationId) {
+      // No id to claim against; the NX key above is the only dedupe.
+      await send();
+      return;
+    }
     await sendPostbackOnce({
       // Its own id: the tap's id is claimed later by the link or prompt that
       // the re-check sends, and claiming it here would suppress that message.
-      operationId: operationId ? `${operationId}:ack` : null,
-      send: () =>
-        sendDirectMessage({ context, instagramAccountId, userId, message }),
+      operationId: `${operationId}:ack`,
+      send,
     });
   } catch (error) {
     console.log(
