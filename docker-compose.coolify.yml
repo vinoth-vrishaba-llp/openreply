@@ -8,8 +8,7 @@
 # pass its internal URL as DATABASE_URL. Redis is bundled below.
 #
 # web, worker and cron are the same Dockerfile with different commands (see
-# the Dockerfile header). Each declares `build` so none depends on a registry;
-# the layer cache makes the second and third builds near-instant.
+# the Dockerfile header). Only web builds the image; worker and cron reuse it.
 
 x-app-env: &app-env
   NEXTAUTH_URL: ${NEXTAUTH_URL:?}
@@ -58,8 +57,10 @@ services:
       start_period: 60s
 
   worker:
-    build: .
+    # Reuses the image web builds. Building it here too runs a second
+    # `next build` in parallel, which can exhaust RAM on a small server.
     image: openreply:latest
+    pull_policy: never
     restart: unless-stopped
     command: ["npm", "run", "worker"]
     environment:
@@ -69,8 +70,10 @@ services:
         condition: service_healthy
 
   cron:
-    build: .
+    # Reuses the image web builds. Building it here too runs a second
+    # `next build` in parallel, which can exhaust RAM on a small server.
     image: openreply:latest
+    pull_policy: never
     restart: unless-stopped
     command: ["sh", "scripts/cron.sh"]
     environment:
