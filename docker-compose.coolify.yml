@@ -49,8 +49,9 @@ services:
         condition: service_healthy
     # Liveness only. /api/health answers 503 until the worker heartbeats, so
     # using it here would deadlock cron (which waits on web being healthy).
+    # Plain GET, not --spider: Auth.js rejects HEAD requests.
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:3000/api/auth/providers || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/api/auth/providers || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 10
