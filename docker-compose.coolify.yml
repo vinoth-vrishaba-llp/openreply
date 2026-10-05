@@ -1,0 +1,97 @@
+# OpenReply — Coolify deployment (Docker Compose build pack)
+#
+# In Coolify: New Resource → Docker Compose → point at this repo and set
+# "Docker Compose Location" to /docker-compose.coolify.yml. Assign your domain
+# to the `web` service only, with port 3000 (e.g. https://reply.example.com:3000).
+#
+# Postgres is NOT in this file: create it as a Coolify database resource and
+# pass its internal URL as DATABASE_URL. Redis is bundled below.
+#
+# web, worker and cron are the same Dockerfile with different commands (see
+# the Dockerfile header). Each declares `build` so none depends on a registry;
+# the layer cache makes the second and third builds near-instant.
+
+x-app-env: &app-env
+  NEXTAUTH_URL: ${NEXTAUTH_URL:?}
+  NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?}
+  CRON_SECRET: ${CRON_SECRET:?}
+  # Must be 64 hex chars and identical across web and worker, or stored
+  # Instagram tokens cannot be decrypted. Generate: openssl rand -hex 32
+  ENCRYPTION_KEY: ${ENCRYPTION_KEY:?}
+  # Postgres is a separate Coolify database resource (for its scheduled
+  # backups). Use its *internal* URL, and enable "Connect to Predefined Network"
+  # on this compose resource so the hostname resolves.
+  DATABASE_URL: ${DATABASE_URL:?}
+  REDIS_URL: redis://redis:6379
+  RESEND_API_KEY: ${RESEND_API_KEY:-}
+  EMAIL_SERVER: ${EMAIL_SERVER:-}
+  EMAIL_FROM: ${EMAIL_FROM:?}
+  ALLOWED_EMAILS: ${ALLOWED_EMAILS:-}
+  META_GRAPH_API_VERSION: ${META_GRAPH_API_VERSION:-v25.0}
+  INSTAGRAM_APP_ID: ${INSTAGRAM_APP_ID:-}
+  INSTAGRAM_APP_SECRET: ${INSTAGRAM_APP_SECRET:-}
+  FACEBOOK_APP_SECRET: ${FACEBOOK_APP_SECRET:-}
+  WEBHOOK_VERIFY_TOKEN: ${WEBHOOK_VERIFY_TOKEN:-}
+
+services:
+  web:
+    build: .
+    image: openreply:latest
+    restart: unless-stopped
+    # Migrations run at start, not build: the build container cannot reach
+    # the database (see docs/deploy-dokploy.md, Gotcha #3).
+    command: ["sh", "-c", "npx prisma migrate deploy && npm run start"]
+    environment:
+      <<: *app-env
+    expose:
+      - "3000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    # Liveness only. /api/health answers 503 until the worker heartbeats, so
+    # using it here would deadlock cron (which waits on web being healthy).
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:3000/api/auth/providers || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  worker:
+    build: .
+    image: openreply:latest
+    restart: unless-stopped
+    command: ["npm", "run", "worker"]
+    environment:
+      <<: *app-env
+    depends_on:
+      web:
+        condition: service_healthy
+
+  cron:
+    build: .
+    image: openreply:latest
+    restart: unless-stopped
+    command: ["sh", "scripts/cron.sh"]
+    environment:
+      CRON_BASE_URL: http://web:3000
+      CRON_SECRET: ${CRON_SECRET:?}
+    depends_on:
+      web:
+        condition: service_healthy
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # BullMQ requires noeviction, and AOF keeps queued DMs across restarts.
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  redisdata:
