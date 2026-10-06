@@ -3,7 +3,11 @@ import Nodemailer from "next-auth/providers/nodemailer";
 import Resend from "next-auth/providers/resend";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/db/client";
-import { ensureWorkspaceForUser, getPrimaryWorkspace } from "@/lib/workspace";
+import {
+  ensureWorkspaceForUser,
+  getPrimaryWorkspace,
+  isEmailInvitedOrMember,
+} from "@/lib/workspace";
 import { isEmailAllowedToSignIn } from "@/lib/env";
 
 type AdapterPrismaClient = Parameters<typeof PrismaAdapter>[0];
@@ -32,9 +36,12 @@ export const authConfig = {
   ],
   callbacks: {
     // Runs before the magic link is sent, so a blocked address never receives
-    // one, and again when the link is verified.
+    // one, and again when the link is verified. People invited to a workspace
+    // get through even when ALLOWED_EMAILS does not list them: the invite is
+    // already an owner's or admin's approval.
     async signIn({ user }) {
-      return isEmailAllowedToSignIn(user?.email);
+      if (isEmailAllowedToSignIn(user?.email)) return true;
+      return isEmailInvitedOrMember(user?.email);
     },
     async session({ session, user }) {
       if (session.user) {
@@ -53,6 +60,8 @@ export const authConfig = {
   pages: {
     signIn: "/login",
     verifyRequest: "/verify-request",
+    // Auth.js appends ?error=<code>; the login page explains it.
+    error: "/login",
   },
   session: {
     strategy: "database",

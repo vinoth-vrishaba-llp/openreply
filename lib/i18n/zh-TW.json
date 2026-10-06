@@ -451,5 +451,8 @@
   "”": "」",
   "← Campaigns": "← 返回活動列表",
   "Leave empty to use the default of {count} per hour. Meta allows at most 750.": "留空則使用預設值：每小時 {count} 則。Meta 上限為 750 則。",
-  "Max DMs per hour": "每小時私訊上限"
+  "Max DMs per hour": "每小時私訊上限",
+  "This email isn't allowed to sign in here. Ask the workspace owner to invite you.": "此電子郵件無法登入本站。請聯絡工作區擁有者邀請你。",
+  "This sign-in link has expired or was already used. Request a new one.": "此登入連結已過期或已使用，請重新索取。",
+  "Sign-in failed. Please try again.": "登入失敗，請再試一次。"
 }

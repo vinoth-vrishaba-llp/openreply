@@ -5,6 +5,39 @@ function normalizeInviteEmail(email: string) {
   return email.trim().toLowerCase();
 }
 
+/**
+ * True when a workspace owner or admin on this instance has let this email in:
+ * a live invitation, or membership of a workspace the person does not own.
+ * Keeps ALLOWED_EMAILS a list of owners without locking out their team.
+ * Removing someone from a team deletes the membership, which closes this again.
+ */
+export async function isEmailInvitedOrMember(
+  email: string | null | undefined
+): Promise<boolean> {
+  if (!email) return false;
+
+  const normalizedEmail = normalizeInviteEmail(email);
+  const [invitation, membership] = await Promise.all([
+    prisma.workspaceInvitation.findFirst({
+      where: {
+        email: normalizedEmail,
+        status: "PENDING",
+        expiresAt: { gt: new Date() },
+      },
+      select: { id: true },
+    }),
+    prisma.workspaceMember.findFirst({
+      where: {
+        role: { not: "OWNER" },
+        user: { email: { equals: normalizedEmail, mode: "insensitive" } },
+      },
+      select: { id: true },
+    }),
+  ]);
+
+  return Boolean(invitation || membership);
+}
+
 export async function acceptPendingInvitationsForUser(
   userId: string,
   email?: string | null

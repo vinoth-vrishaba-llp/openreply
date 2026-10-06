@@ -1,3 +1,5 @@
+import { AuthError } from "next-auth";
+import { redirect } from "next/navigation";
 import { EMAIL_PROVIDER_ID, signIn } from "@/lib/auth";
 import { getI18n } from "@/lib/i18n/server";
 import { getCampaignTemplate } from "@/lib/templates/campaign-templates";
@@ -22,6 +24,7 @@ export default async function LoginPage({
     checkEmail?: string;
     callbackUrl?: string;
     template?: string;
+    error?: string;
   }>;
 }) {
   const { t } = await getI18n();
@@ -61,12 +64,29 @@ export default async function LoginPage({
     : null;
   const callbackUrl = params.callbackUrl ?? templateCallbackUrl ?? "/dashboard";
 
+  const errorMessage = params.error
+    ? params.error === "AccessDenied"
+      ? t("This email isn't allowed to sign in here. Ask the workspace owner to invite you.")
+      : params.error === "Verification"
+        ? t("This sign-in link has expired or was already used. Request a new one.")
+        : t("Sign-in failed. Please try again.")
+    : null;
+
   async function sendMagicLink(formData: FormData) {
     "use server";
-    await signIn(EMAIL_PROVIDER_ID, {
-      email: String(formData.get("email") ?? ""),
-      redirectTo: callbackUrl,
-    });
+    try {
+      await signIn(EMAIL_PROVIDER_ID, {
+        email: String(formData.get("email") ?? ""),
+        redirectTo: callbackUrl,
+      });
+    } catch (error) {
+      // signIn redirects by throwing, so only an AuthError is handled here.
+      if (error instanceof AuthError) {
+        const query = new URLSearchParams({ error: error.type, callbackUrl });
+        redirect(`/login?${query}`);
+      }
+      throw error;
+    }
   }
 
   return (
@@ -106,6 +126,11 @@ export default async function LoginPage({
             </div>
           ) : (
             <form action={sendMagicLink} className="space-y-5">
+              {errorMessage && (
+                <p role="alert" className="rounded border border-error/20 bg-error/10 px-3 py-2 text-sm text-error">
+                  {errorMessage}
+                </p>
+              )}
               <div className="space-y-2">
                 <label
                   htmlFor="email"

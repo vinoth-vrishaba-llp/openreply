@@ -38,7 +38,7 @@ export default function InvitationAcceptCard({
   if (!isSignedIn) {
     return (
       <a
-        href="/login"
+        href={`/login?callbackUrl=${encodeURIComponent(`/invite/${token}`)}`}
         className="inline-flex items-center justify-center rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-white transition hover:bg-accent-hover"
       >
         {t("Sign in to accept")}

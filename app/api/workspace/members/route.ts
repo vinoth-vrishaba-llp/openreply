@@ -238,6 +238,7 @@ export async function DELETE(request: NextRequest) {
   if (parsed.data.memberId) {
     const member = await prisma.workspaceMember.findFirst({
       where: { id: parsed.data.memberId, workspaceId: context.workspaceId },
+      include: { user: { select: { email: true } } },
     });
     if (!member || member.role === "OWNER" || member.userId === context.userId) {
       return NextResponse.json(
@@ -246,7 +247,26 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    await prisma.workspaceMember.delete({ where: { id: member.id } });
+    // Revoke their invitation with the membership, so the record says they
+    // were removed and a still-pending copy can't let them back in.
+    const memberEmail = member.user.email
+      ? normalizeInvitationEmail(member.user.email)
+      : null;
+    await prisma.$transaction([
+      prisma.workspaceMember.delete({ where: { id: member.id } }),
+      ...(memberEmail
+        ? [
+            prisma.workspaceInvitation.updateMany({
+              where: {
+                workspaceId: context.workspaceId,
+                email: memberEmail,
+                status: { in: ["PENDING", "ACCEPTED"] },
+              },
+              data: { status: "REVOKED" },
+            }),
+          ]
+        : []),
+    ]);
   }
 
   if (parsed.data.invitationId) {
