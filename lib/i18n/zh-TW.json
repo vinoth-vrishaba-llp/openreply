@@ -310,6 +310,7 @@
   "Sign in to accept": "登入以接受邀請",
   "Sign in to manage Instagram comment-to-DM campaigns.": "登入以管理 Instagram 留言自動私訊活動。",
   "Sign in to use the {name} template.": "登入以使用「{name}」範本。",
+  "Sign out": "登出",
   "Sign-in is off on this demo": "示範網站未開放登入",
   "Signing in here will not send DMs for your Instagram account. OpenReply is self-hosted, so it only works on a deployment you run yourself, with your own Meta app and your own domain.": "在此登入不會替你的 Instagram 帳號傳送私訊。請自行部署 OpenReply，並設定自己的 Meta 應用程式與網域。",
   "Skip": "略過",

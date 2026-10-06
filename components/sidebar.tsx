@@ -7,6 +7,7 @@
  */
 
 import LanguageSwitcher from "@/components/language-switcher";
+import { signOutAction } from "@/lib/auth-actions";
 import { useI18n } from "@/lib/i18n/provider";
 import Link from "next/link";
 import Image from "next/image";
@@ -95,6 +96,14 @@ export default function Sidebar({
           <div className="mb-4"><LanguageSwitcher /></div>
           <p className="text-sm text-foreground truncate">{workspaceName}</p>
           <p className="text-xs text-muted">{t("Self-hosted")}</p>
+          <form action={signOutAction} className="mt-3">
+            <button
+              type="submit"
+              className="text-xs text-muted hover:text-foreground"
+            >
+              {t("Sign out")}
+            </button>
+          </form>
           <a
             href={zernioLink({ placement: "sidebar" })}
             target="_blank"
