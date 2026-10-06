@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { getI18n } from "@/lib/i18n/server";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { normalizeInvitationEmail } from "@/lib/workspace-invitations";
 import InvitationAcceptCard from "@/components/invitation-accept-card";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/db/client";
@@ -30,6 +31,17 @@ export default async function InvitePage({ params }: InvitePageProps) {
       },
     }),
   ]);
+
+  // A new user's first sign-in accepts their pending invites on its own
+  // (acceptPendingInvitationsForUser), and "Sign in to accept" returns here
+  // afterwards — so the invitee lands on an already accepted invite.
+  if (
+    invitation?.status === "ACCEPTED" &&
+    session?.user?.email &&
+    normalizeInvitationEmail(session.user.email) === invitation.email
+  ) {
+    redirect("/dashboard");
+  }
 
   if (!invitation || invitation.status !== "PENDING") {
     notFound();
