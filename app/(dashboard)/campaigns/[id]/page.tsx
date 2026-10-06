@@ -9,6 +9,7 @@
  */
 
 import { useI18n } from "@/lib/i18n/provider";
+import { useCanManageWorkspace } from "@/components/workspace-role";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -59,6 +60,7 @@ type Tab = "insights" | "preview";
 
 export default function CampaignDetailPage() {
   const { t } = useI18n();
+  const canManage = useCanManageWorkspace();
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
 
@@ -304,25 +306,27 @@ export default function CampaignDetailPage() {
               {t("Preview")}
             </TabButton>
           </div>
-          <div className="flex items-center gap-2">
-            <Link
-              href={`/campaigns/${campaign.id}/edit`}
-              className="rounded border border-border px-3 py-1.5 text-sm text-muted hover:text-foreground"
-            >
-              {t("Edit")}
-            </Link>
-            <button
-              onClick={toggleActive}
-              disabled={busy}
-              className={`rounded border px-3 py-1.5 text-sm disabled:opacity-50 ${
-                campaign.isActive
-                  ? "border-error/30 text-error hover:bg-error/10"
-                  : "border-success/30 text-success hover:bg-success/10"
-              }`}
-            >
-              {campaign.isActive ? t("Stop") : t("Resume")}
-            </button>
-          </div>
+          {canManage && (
+            <div className="flex items-center gap-2">
+              <Link
+                href={`/campaigns/${campaign.id}/edit`}
+                className="rounded border border-border px-3 py-1.5 text-sm text-muted hover:text-foreground"
+              >
+                {t("Edit")}
+              </Link>
+              <button
+                onClick={toggleActive}
+                disabled={busy}
+                className={`rounded border px-3 py-1.5 text-sm disabled:opacity-50 ${
+                  campaign.isActive
+                    ? "border-error/30 text-error hover:bg-error/10"
+                    : "border-success/30 text-success hover:bg-success/10"
+                }`}
+              >
+                {campaign.isActive ? t("Stop") : t("Resume")}
+              </button>
+            </div>
+          )}
         </div>
 
         {tab === "insights" && (

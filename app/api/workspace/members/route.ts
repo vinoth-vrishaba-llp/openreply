@@ -29,8 +29,11 @@ const deleteSchema = z.object({
 
 async function getMemberPayload(
   workspaceId: string,
-  currentUserRole?: "OWNER" | "ADMIN" | "MEMBER"
+  currentUserRole: "OWNER" | "ADMIN" | "MEMBER",
+  currentUserId: string
 ) {
+  // Invite links carry a sign-in-capable token; only managers see them.
+  const canSeeInvitations = canManageWorkspace(currentUserRole);
   const [members, invitations] = await Promise.all([
     prisma.workspaceMember.findMany({
       where: { workspaceId },
@@ -48,22 +51,25 @@ async function getMemberPayload(
         },
       },
     }),
-    prisma.workspaceInvitation.findMany({
-      where: { workspaceId, status: "PENDING" },
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        email: true,
-        role: true,
-        token: true,
-        expiresAt: true,
-        createdAt: true,
-      },
-    }),
+    canSeeInvitations
+      ? prisma.workspaceInvitation.findMany({
+          where: { workspaceId, status: "PENDING" },
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            email: true,
+            role: true,
+            token: true,
+            expiresAt: true,
+            createdAt: true,
+          },
+        })
+      : Promise.resolve([]),
   ]);
 
   return {
-    ...(currentUserRole ? { currentUserRole } : {}),
+    currentUserRole,
+    currentUserId,
     members,
     invitations: invitations.map((invitation) => ({
       ...invitation,
@@ -84,7 +90,7 @@ export async function GET() {
   return NextResponse.json({
     success: true,
     data: {
-      ...(await getMemberPayload(context.workspaceId, context.role)),
+      ...(await getMemberPayload(context.workspaceId, context.role, context.userId)),
     },
   });
 }
@@ -164,7 +170,7 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({
     success: true,
-    data: await getMemberPayload(context.workspaceId, context.role),
+    data: await getMemberPayload(context.workspaceId, context.role, context.userId),
   });
 }
 
@@ -208,7 +214,7 @@ export async function PATCH(request: NextRequest) {
 
   return NextResponse.json({
     success: true,
-    data: await getMemberPayload(context.workspaceId, context.role),
+    data: await getMemberPayload(context.workspaceId, context.role, context.userId),
   });
 }
 
@@ -282,6 +288,6 @@ export async function DELETE(request: NextRequest) {
 
   return NextResponse.json({
     success: true,
-    data: await getMemberPayload(context.workspaceId, context.role),
+    data: await getMemberPayload(context.workspaceId, context.role, context.userId),
   });
 }

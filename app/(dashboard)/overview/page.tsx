@@ -10,6 +10,7 @@
 
 import type { Locale } from "@/lib/i18n";
 import { useI18n } from "@/lib/i18n/provider";
+import { useCanManageWorkspace } from "@/components/workspace-role";
 import { useEffect, useState } from "react";
 import AccountSelect from "@/components/account-select";
 import StatCard from "@/components/stat-card";
@@ -37,6 +38,7 @@ const COUNT_OPTIONS = [
 
 export default function OverviewPage() {
   const { t, locale } = useI18n();
+  const canManage = useCanManageWorkspace();
   const [data, setData] = useState<OverviewResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -91,7 +93,7 @@ export default function OverviewPage() {
     return (
       <div className="panel rounded p-8 text-center">
         <p className="text-sm text-error">{error === "Failed to load overview" ? t("Failed to load overview") : error}</p>
-        {error.includes("connect") && (
+        {canManage && error.includes("connect") && (
           <a
             href="/api/instagram/connect"
             className="mt-4 inline-block text-sm text-accent hover:underline"
@@ -167,12 +169,14 @@ export default function OverviewPage() {
           <p className="text-sm text-muted mt-1">
             {t("Reconnect your account to grant it — likes and comments are shown in the meantime.")}
           </p>
-          <a
-            href="/api/instagram/connect"
-            className="mt-3 inline-block text-sm text-accent hover:underline"
-          >
-            {t("Reconnect Instagram")}
-          </a>
+          {canManage && (
+            <a
+              href="/api/instagram/connect"
+              className="mt-3 inline-block text-sm text-accent hover:underline"
+            >
+              {t("Reconnect Instagram")}
+            </a>
+          )}
         </div>
       )}
 

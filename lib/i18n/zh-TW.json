@@ -454,5 +454,8 @@
   "Max DMs per hour": "每小時私訊上限",
   "This email isn't allowed to sign in here. Ask the workspace owner to invite you.": "此電子郵件無法登入本站。請聯絡工作區擁有者邀請你。",
   "This sign-in link has expired or was already used. Request a new one.": "此登入連結已過期或已使用，請重新索取。",
-  "Sign-in failed. Please try again.": "登入失敗，請再試一次。"
+  "Sign-in failed. Please try again.": "登入失敗，請再試一次。",
+  "Remove this member? They lose access to this workspace.": "要移除此成員嗎？對方將無法再存取此工作區。",
+  "Could not update member": "無法更新成員",
+  "Role": "角色"
 }

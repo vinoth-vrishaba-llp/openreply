@@ -7,6 +7,7 @@
  */
 
 import { useI18n } from "@/lib/i18n/provider";
+import { useCanManageWorkspace } from "@/components/workspace-role";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -65,6 +66,7 @@ interface Campaign {
 
 export default function CampaignsPage() {
   const { t, label } = useI18n();
+  const canManage = useCanManageWorkspace();
   const router = useRouter();
   const [automations, setAutomations] = useState<Campaign[]>([]);
   const [accounts, setAccounts] = useState<AccountOption[]>([]);
@@ -297,18 +299,22 @@ export default function CampaignsPage() {
               onChange={handleAccountChange}
             />
           )}
-          <Link
-            href="/campaigns/import"
-            className="flex-1 rounded border border-border px-4 py-2 text-center text-sm font-medium text-muted hover:text-foreground sm:flex-none"
-          >
-            {t("Import")}
-          </Link>
-          <Link
-            href="/campaigns/new"
-            className="flex-1 rounded bg-accent px-4 py-2 text-center text-sm font-medium text-white hover:bg-accent-hover sm:flex-none"
-          >
-            {t("New Campaign")}
-          </Link>
+          {canManage && (
+            <>
+              <Link
+                href="/campaigns/import"
+                className="flex-1 rounded border border-border px-4 py-2 text-center text-sm font-medium text-muted hover:text-foreground sm:flex-none"
+              >
+                {t("Import")}
+              </Link>
+              <Link
+                href="/campaigns/new"
+                className="flex-1 rounded bg-accent px-4 py-2 text-center text-sm font-medium text-white hover:bg-accent-hover sm:flex-none"
+              >
+                {t("New Campaign")}
+              </Link>
+            </>
+          )}
         </div>
       </div>
 
@@ -347,12 +353,14 @@ export default function CampaignsPage() {
           <p className="text-sm text-muted mb-6 max-w-sm mx-auto">
             {t("Create your first comment-to-DM campaign to turn a post or reel into a measurable conversation flow.")}
           </p>
-          <Link
-            href="/campaigns/new"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded bg-accent text-sm font-semibold text-white hover:bg-accent-hover transition-colors"
-          >
-            {t("Create Campaign")}
-          </Link>
+          {canManage && (
+            <Link
+              href="/campaigns/new"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded bg-accent text-sm font-semibold text-white hover:bg-accent-hover transition-colors"
+            >
+              {t("Create Campaign")}
+            </Link>
+          )}
         </div>
       )}
 
@@ -519,58 +527,62 @@ export default function CampaignsPage() {
                   </button>
                 )}
                 {/* Toggle */}
-                <button
-                  onClick={() => toggleActive(auto.id, auto.isActive)}
-                  className={`
-                    relative w-11 h-6 rounded-full transition-colors
-                    ${auto.isActive ? "bg-accent" : "bg-zinc-300"}
-                  `}
-                >
-                  <span
+                {canManage && (
+                  <button
+                    onClick={() => toggleActive(auto.id, auto.isActive)}
                     className={`
-                      absolute top-1 w-4 h-4 rounded-full bg-white transition-transform shadow-sm
-                      ${auto.isActive ? "left-6" : "left-1"}
+                      relative w-11 h-6 rounded-full transition-colors
+                      ${auto.isActive ? "bg-accent" : "bg-zinc-300"}
                     `}
-                  />
-                </button>
+                  >
+                    <span
+                      className={`
+                        absolute top-1 w-4 h-4 rounded-full bg-white transition-transform shadow-sm
+                        ${auto.isActive ? "left-6" : "left-1"}
+                      `}
+                    />
+                  </button>
+                )}
 
                 {/* Kebab menu */}
-                <div className="relative">
-                  <button
-                    onClick={() =>
-                      setMenuOpenId((cur) => (cur === auto.id ? null : auto.id))
-                    }
-                    aria-label={t("More actions")}
-                    className="px-2 py-1 rounded text-lg leading-none text-muted hover:text-foreground"
-                  >
-                    ⋯
-                  </button>
-                  {menuOpenId === auto.id && (
-                    <>
-                      <div
-                        className="fixed inset-0 z-10"
-                        onClick={() => setMenuOpenId(null)}
-                      />
-                      <div className="absolute right-0 z-20 mt-1 w-36 overflow-hidden rounded-lg border border-border bg-surface shadow-lg">
-                        <button
-                          onClick={() => void duplicateAutomation(auto.id)}
-                          className="block w-full px-3 py-2 text-left text-sm text-foreground hover:bg-surface-hover"
-                        >
-                          {t("Duplicate")}
-                        </button>
-                        <button
-                          onClick={() => {
-                            setMenuOpenId(null);
-                            void deleteAutomation(auto.id);
-                          }}
-                          className="block w-full px-3 py-2 text-left text-sm text-error hover:bg-surface-hover"
-                        >
-                          {t("Delete")}
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
+                {canManage && (
+                  <div className="relative">
+                    <button
+                      onClick={() =>
+                        setMenuOpenId((cur) => (cur === auto.id ? null : auto.id))
+                      }
+                      aria-label={t("More actions")}
+                      className="px-2 py-1 rounded text-lg leading-none text-muted hover:text-foreground"
+                    >
+                      ⋯
+                    </button>
+                    {menuOpenId === auto.id && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-10"
+                          onClick={() => setMenuOpenId(null)}
+                        />
+                        <div className="absolute right-0 z-20 mt-1 w-36 overflow-hidden rounded-lg border border-border bg-surface shadow-lg">
+                          <button
+                            onClick={() => void duplicateAutomation(auto.id)}
+                            className="block w-full px-3 py-2 text-left text-sm text-foreground hover:bg-surface-hover"
+                          >
+                            {t("Duplicate")}
+                          </button>
+                          <button
+                            onClick={() => {
+                              setMenuOpenId(null);
+                              void deleteAutomation(auto.id);
+                            }}
+                            className="block w-full px-3 py-2 text-left text-sm text-error hover:bg-surface-hover"
+                          >
+                            {t("Delete")}
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>

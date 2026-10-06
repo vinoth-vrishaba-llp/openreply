@@ -2,6 +2,7 @@ import type { Workspace, WorkspaceRole } from "@/app/generated/prisma/client";
 import { getCurrentUserId } from "@/lib/auth";
 import { prisma } from "@/lib/db/client";
 import { ensureWorkspaceForUser } from "@/lib/workspace";
+import { redirect } from "next/navigation";
 
 export type WorkspaceContext = {
   userId: string;
@@ -25,6 +26,17 @@ export function hasWorkspaceRole(
 
 export function canManageWorkspace(role: WorkspaceRole) {
   return hasWorkspaceRole(role, "ADMIN");
+}
+
+/**
+ * Page guard for screens only owners and admins can use. The API routes check
+ * the role too; this just keeps a member from landing on a form that would
+ * refuse to save.
+ */
+export async function redirectUnlessWorkspaceManager(fallback: string) {
+  const context = await getCurrentWorkspaceContext();
+  if (!context) redirect("/login");
+  if (!canManageWorkspace(context.role)) redirect(fallback);
 }
 
 export function canManageBilling(role: WorkspaceRole) {

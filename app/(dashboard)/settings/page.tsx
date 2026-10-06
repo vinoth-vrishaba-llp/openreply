@@ -6,6 +6,7 @@ import { Suspense, useEffect, useState } from "react";
 import type { AccountOption } from "@/components/account-select";
 import { ZernioConnection } from "@/components/zernio-connection";
 import { InstagramConnectNotice } from "@/components/instagram-connect-notice";
+import { useCanManageWorkspace } from "@/components/workspace-role";
 
 interface SettingsData {
   workspace: {
@@ -32,6 +33,7 @@ interface SettingsData {
 
 interface WorkspaceMembersData {
   currentUserRole: "OWNER" | "ADMIN" | "MEMBER";
+  currentUserId: string;
   members: Array<{
     id: string;
     role: "OWNER" | "ADMIN" | "MEMBER";
@@ -53,6 +55,7 @@ interface WorkspaceMembersData {
 
 export default function SettingsPage() {
   const { t, label, locale } = useI18n();
+  const canManageMembers = useCanManageWorkspace();
   const [data, setData] = useState<SettingsData | null>(null);
   const [membersData, setMembersData] = useState<WorkspaceMembersData | null>(
     null
@@ -155,6 +158,34 @@ export default function SettingsPage() {
     setBusy(null);
   }
 
+  async function updateMember(
+    memberId: string,
+    change: { role: "ADMIN" | "MEMBER" } | "remove"
+  ) {
+    if (
+      change === "remove" &&
+      !confirm(t("Remove this member? They lose access to this workspace."))
+    ) {
+      return;
+    }
+    setMemberError(null);
+    setBusy(`member:${memberId}`);
+    const res = await fetch("/api/workspace/members", {
+      method: change === "remove" ? "DELETE" : "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(
+        change === "remove" ? { memberId } : { memberId, role: change.role }
+      ),
+    });
+    const payload = await res.json();
+    if (payload.success) {
+      setMembersData(payload.data);
+    } else {
+      setMemberError(payload.error ?? t("Could not update member"));
+    }
+    setBusy(null);
+  }
+
   async function removeInvitation(invitationId: string) {
     setBusy(`invite:${invitationId}`);
     await fetch("/api/workspace/members", {
@@ -171,9 +202,6 @@ export default function SettingsPage() {
   }
 
   const accounts = data?.instagramAccounts ?? [];
-  const canManageMembers =
-    membersData?.currentUserRole === "OWNER" ||
-    membersData?.currentUserRole === "ADMIN";
 
   return (
     <div className="max-w-2xl mx-auto space-y-8">
@@ -287,15 +315,17 @@ export default function SettingsPage() {
                     </div>
                   )}
                 </div>
-                <button
-                  onClick={() => disconnectInstagram(account.id)}
-                  disabled={busy === `disconnect:${account.id}`}
-                  className="inline-flex items-center justify-center rounded border border-error/20 px-4 py-2 text-sm font-medium text-error transition-all hover:border-error/40 hover:bg-error/10 disabled:opacity-50"
-                >
-                  {busy === `disconnect:${account.id}`
-                    ? t("Disconnecting...")
-                    : t("Disconnect")}
-                </button>
+                {canManageMembers && (
+                  <button
+                    onClick={() => disconnectInstagram(account.id)}
+                    disabled={busy === `disconnect:${account.id}`}
+                    className="inline-flex items-center justify-center rounded border border-error/20 px-4 py-2 text-sm font-medium text-error transition-all hover:border-error/40 hover:bg-error/10 disabled:opacity-50"
+                  >
+                    {busy === `disconnect:${account.id}`
+                      ? t("Disconnecting...")
+                      : t("Disconnect")}
+                  </button>
+                )}
               </div>
             ))}
             {accounts.length > 0 && (
@@ -307,14 +337,16 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <div className="mt-6 pt-4 border-t border-border flex gap-3">
-          <a
-            href="/api/instagram/connect"
-            className="px-4 py-2 rounded text-sm font-medium transition-colors bg-accent text-white hover:bg-accent-hover"
-          >
-            {t("Connect using your own Meta app")}
-          </a>
-        </div>
+        {canManageMembers && (
+          <div className="mt-6 pt-4 border-t border-border flex gap-3">
+            <a
+              href="/api/instagram/connect"
+              className="px-4 py-2 rounded text-sm font-medium transition-colors bg-accent text-white hover:bg-accent-hover"
+            >
+              {t("Connect using your own Meta app")}
+            </a>
+          </div>
+        )}
       </section>
 
       <section className="panel rounded p-4 sm:p-6">
@@ -331,14 +363,43 @@ export default function SettingsPage() {
                 </p>
                 <p className="text-xs text-muted">{member.user.email}</p>
               </div>
-              <span className="rounded-full border border-border px-3 py-1 text-xs font-semibold text-muted">
-                {label(member.role)}
-              </span>
+              {canManageMembers &&
+              member.role !== "OWNER" &&
+              member.user.id !== membersData.currentUserId ? (
+                <div className="flex shrink-0 items-center gap-2">
+                  <select
+                    aria-label={t("Role")}
+                    value={member.role}
+                    disabled={busy === `member:${member.id}`}
+                    onChange={(event) =>
+                      void updateMember(member.id, {
+                        role: event.target.value as "ADMIN" | "MEMBER",
+                      })
+                    }
+                    className="rounded border border-border bg-surface px-2 py-1 text-xs text-foreground disabled:opacity-50"
+                  >
+                    <option value="MEMBER">{t("Member")}</option>
+                    <option value="ADMIN">{t("Admin")}</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => void updateMember(member.id, "remove")}
+                    disabled={busy === `member:${member.id}`}
+                    className="rounded-lg border border-error/20 px-3 py-1 text-xs font-medium text-error transition-colors hover:bg-error/10 disabled:opacity-50"
+                  >
+                    {t("Remove")}
+                  </button>
+                </div>
+              ) : (
+                <span className="rounded-full border border-border px-3 py-1 text-xs font-semibold text-muted">
+                  {label(member.role)}
+                </span>
+              )}
             </div>
           ))}
         </div>
 
-        {membersData?.invitations.length ? (
+        {canManageMembers && membersData?.invitations.length ? (
           <div className="mt-6 border-t border-border pt-4">
             <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">
               {t("Pending invites")}

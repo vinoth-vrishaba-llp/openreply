@@ -8,6 +8,7 @@
 
 import type { StaticMessageKey } from "@/lib/i18n";
 import { useI18n } from "@/lib/i18n/provider";
+import { useCanManageWorkspace } from "@/components/workspace-role";
 import { usePathname } from "next/navigation";
 
 const pageTitles: Record<string, StaticMessageKey> = {
@@ -36,6 +37,7 @@ export default function TopBar({
   instagramAccountCount,
 }: TopBarProps) {
   const { t } = useI18n();
+  const canManage = useCanManageWorkspace();
   const pathname = usePathname();
   const title: StaticMessageKey = pageTitles[pathname] ?? (
     pathname.endsWith("/edit") ? "Edit campaign"
@@ -70,7 +72,7 @@ export default function TopBar({
             ? t("{count} accounts", { count: instagramAccountCount })
             : `@${instagramUsername}`}
         </p>
-      ) : (
+      ) : canManage ? (
         <a
           href="/api/instagram/connect"
           className="shrink-0 whitespace-nowrap text-sm font-medium px-3 py-1.5 rounded bg-accent text-white hover:bg-accent-hover"
@@ -79,7 +81,7 @@ export default function TopBar({
           <span className="sm:hidden">{t("Connect")}</span>
           <span className="hidden sm:inline">{t("Connect Instagram")}</span>
         </a>
-      )}
+      ) : null}
     </header>
   );
 }
