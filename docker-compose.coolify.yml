@@ -31,6 +31,9 @@ x-app-env: &app-env
   INSTAGRAM_APP_SECRET: ${INSTAGRAM_APP_SECRET:-}
   FACEBOOK_APP_SECRET: ${FACEBOOK_APP_SECRET:-}
   WEBHOOK_VERIFY_TOKEN: ${WEBHOOK_VERIFY_TOKEN:-}
+  # Default hourly DM cap per Instagram account (1-750). Empty = 750, Meta's
+  # ceiling. Each account can override it in Settings.
+  DM_HOURLY_CAP: ${DM_HOURLY_CAP:-}
 
 services:
   web:

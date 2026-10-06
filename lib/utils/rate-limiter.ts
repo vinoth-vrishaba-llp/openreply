@@ -9,14 +9,17 @@
  * requeues rather than pushing through.
  * https://developers.facebook.com/docs/graph-api/overview/rate-limiting/
  *
- * Note this is a hard ceiling with no headroom. If Meta throttles before the
+ * That number is a hard ceiling with no headroom. If Meta throttles before the
  * documented limit, or other calls on the same account share the bucket, lower
- * this value.
+ * the cap: DM_HOURLY_CAP sets the default for every account, and an account's
+ * own hourlyDmCap (Settings) overrides it. See lib/utils/hourly-cap.ts.
  */
 
 import Redis from "ioredis";
+import { prisma } from "@/lib/db/client";
+import { HOURLY_CAP_CEILING, resolveHourlyCap } from "@/lib/utils/hourly-cap";
 
-const RATE_LIMIT_MAX = 750; // private replies per hour, per Meta's documented cap
+const RATE_LIMIT_MAX = HOURLY_CAP_CEILING; // per Meta's documented cap
 const RATE_LIMIT_WINDOW = 3600; // 1 hour in seconds
 const REQUEUE_DELAY_MS = 30 * 60 * 1000; // 30 minutes
 const MAX_REQUEUE_ATTEMPTS = 3;
@@ -150,6 +153,22 @@ export async function checkRateLimit(
 }
 
 /**
+ * The cap in force for one account. A failed lookup must not stop sending, so
+ * it falls back to the default rather than throwing.
+ */
+async function getAccountHourlyCap(instagramAccountId: string): Promise<number> {
+  try {
+    const account = await prisma.instagramAccount.findUnique({
+      where: { id: instagramAccountId },
+      select: { hourlyDmCap: true },
+    });
+    return resolveHourlyCap(account?.hourlyDmCap);
+  } catch {
+    return resolveHourlyCap(null);
+  }
+}
+
+/**
  * Atomically reserve a DM send slot for an Instagram account.
  * This is the worker-safe path; it prevents concurrent jobs from all passing
  * the rate-limit check before any of them increments the Redis counter.
@@ -160,12 +179,13 @@ export async function reserveDMSlot(
 ): Promise<RateLimitResult> {
   const client = getRedis();
   const key = `rate:dm:${instagramAccountId}`;
+  const cap = await getAccountHourlyCap(instagramAccountId);
 
   const result = await client.eval(
     RESERVE_DM_SLOT_SCRIPT,
     1,
     key,
-    RATE_LIMIT_MAX,
+    cap,
     RATE_LIMIT_WINDOW
   );
   const values = Array.isArray(result) ? result : [];

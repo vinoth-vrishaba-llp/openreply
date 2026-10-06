@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUserId, getCurrentWorkspaceId } from "@/lib/auth";
 import { prisma } from "@/lib/db/client";
+import { getDefaultHourlyCap } from "@/lib/utils/hourly-cap";
 import {
   calculateCtr,
   normalizeTopKeywords,
@@ -81,6 +82,7 @@ export async function GET(request: NextRequest) {
         provider: true,
         tokenExpiresAt: true,
         webhookSubscribed: true,
+        hourlyDmCap: true,
       },
     }),
     prisma.automation.count({ where: { workspaceId, ...accountFilter } }),
@@ -199,6 +201,7 @@ export async function GET(request: NextRequest) {
       workspace,
       instagramAccount,
       instagramAccounts,
+      defaultHourlyDmCap: getDefaultHourlyCap(),
       selectedInstagramAccountId: selectedAccountId,
       totalAutomations,
       activeAutomations,

@@ -136,6 +136,9 @@ model InstagramAccount {
   accessToken       String
   tokenExpiresAt    DateTime?
   webhookSubscribed Boolean  @default(false)
+  // Per-account hourly private-reply cap, 1-750. Null means "use the default"
+  // (DM_HOURLY_CAP, else Meta's 750 ceiling).
+  hourlyDmCap       Int?
   connectedAt       DateTime @default(now())
   updatedAt         DateTime @updatedAt
 

@@ -94,6 +94,7 @@
   "Could not change language. Please try again.": "無法切換語言，請再試一次。",
   "Could not invite member": "無法邀請成員",
   "Could not load connection.": "無法載入連線狀態。",
+  "Could not save the limit": "無法儲存上限",
   "Could not stage the import in this browser.": "無法在此瀏覽器準備匯入資料。",
   "Could not update connection.": "無法更新連線。",
   "Create Campaign": "建立活動",
@@ -270,6 +271,7 @@
   "Revoke": "撤銷",
   "Row {row} is missing keywords or a message.": "第 {row} 列缺少關鍵字或私訊內容。",
   "Sat": "週六",
+  "Save": "儲存",
   "Save API key": "儲存 API 金鑰",
   "Save changes": "儲存變更",
   "Save profile and configure webhook": "儲存設定檔並設定 Webhook",
@@ -447,5 +449,7 @@
   "{name} Campaign Report": "{name} 活動報表",
   "{type} post": "{type} 貼文",
   "”": "」",
-  "← Campaigns": "← 返回活動列表"
+  "← Campaigns": "← 返回活動列表",
+  "Leave empty to use the default of {count} per hour. Meta allows at most 750.": "留空則使用預設值：每小時 {count} 則。Meta 上限為 750 則。",
+  "Max DMs per hour": "每小時私訊上限"
 }

@@ -24,8 +24,10 @@ interface SettingsData {
       provider?: "META" | "ZERNIO";
       tokenExpiresAt: string | null;
       webhookSubscribed: boolean;
+      hourlyDmCap: number | null;
     }
   >;
+  defaultHourlyDmCap: number;
 }
 
 interface WorkspaceMembersData {
@@ -60,6 +62,8 @@ export default function SettingsPage() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"ADMIN" | "MEMBER">("MEMBER");
   const [memberError, setMemberError] = useState<string | null>(null);
+  const [capDrafts, setCapDrafts] = useState<Record<string, string>>({});
+  const [capError, setCapError] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -91,6 +95,45 @@ export default function SettingsPage() {
       body: JSON.stringify({ instagramAccountId }),
     });
     window.location.reload();
+  }
+
+  async function saveHourlyCap(instagramAccountId: string) {
+    const draft = capDrafts[instagramAccountId];
+    if (draft === undefined) return;
+    const trimmed = draft.trim();
+    setCapError(null);
+    setBusy(`cap:${instagramAccountId}`);
+    const res = await fetch("/api/instagram/accounts", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        instagramAccountId,
+        hourlyDmCap: trimmed === "" ? null : Number(trimmed),
+      }),
+    });
+    const payload = await res.json();
+    if (payload.success) {
+      setData((current) =>
+        current
+          ? {
+              ...current,
+              instagramAccounts: current.instagramAccounts.map((account) =>
+                account.id === instagramAccountId
+                  ? { ...account, hourlyDmCap: payload.data.hourlyDmCap }
+                  : account
+              ),
+            }
+          : current
+      );
+      setCapDrafts((drafts) => {
+        const rest = { ...drafts };
+        delete rest[instagramAccountId];
+        return rest;
+      });
+    } else {
+      setCapError(payload.error ?? t("Could not save the limit"));
+    }
+    setBusy(null);
   }
 
   async function inviteMember(event: React.FormEvent) {
@@ -205,6 +248,44 @@ export default function SettingsPage() {
                       : t("not available")}</>}{" "}
                     · {account.webhookSubscribed ? t("Webhook ready") : t("Webhook pending")}
                   </p>
+                  {canManageMembers && (
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <label
+                        htmlFor={`cap-${account.id}`}
+                        className="text-xs text-muted"
+                      >
+                        {t("Max DMs per hour")}
+                      </label>
+                      <input
+                        id={`cap-${account.id}`}
+                        type="number"
+                        min={1}
+                        max={750}
+                        inputMode="numeric"
+                        placeholder={String(data?.defaultHourlyDmCap ?? 750)}
+                        value={
+                          capDrafts[account.id] ?? String(account.hourlyDmCap ?? "")
+                        }
+                        onChange={(event) =>
+                          setCapDrafts((drafts) => ({
+                            ...drafts,
+                            [account.id]: event.target.value,
+                          }))
+                        }
+                        className="w-24 rounded border border-border bg-background px-2 py-1 text-sm text-foreground"
+                      />
+                      <button
+                        onClick={() => saveHourlyCap(account.id)}
+                        disabled={
+                          capDrafts[account.id] === undefined ||
+                          busy === `cap:${account.id}`
+                        }
+                        className="rounded border border-border px-3 py-1 text-xs font-medium text-foreground hover:bg-surface-hover disabled:opacity-50"
+                      >
+                        {busy === `cap:${account.id}` ? t("Saving…") : t("Save")}
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <button
                   onClick={() => disconnectInstagram(account.id)}
@@ -217,6 +298,12 @@ export default function SettingsPage() {
                 </button>
               </div>
             ))}
+            {accounts.length > 0 && (
+              <p className="text-xs text-muted">
+                {t("Leave empty to use the default of {count} per hour. Meta allows at most 750.", { count: data?.defaultHourlyDmCap ?? 750 })}
+              </p>
+            )}
+            {capError && <p className="text-xs text-error">{capError}</p>}
           </div>
         </div>
 

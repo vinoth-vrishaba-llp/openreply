@@ -124,6 +124,7 @@ Optional, for tuning the polling reconciler (defaults are fine to start):
 
 | Variable | Default | What it does |
 | --- | --- | --- |
+| `DM_HOURLY_CAP` | `750` | Default cap on private replies per hour for each Instagram account, 1 to 750. Meta's documented limit is 750 and runs with no headroom, so something like `250` is safer. Owners and admins can override it per account under Settings, Instagram Connection. |
 | `COMMENT_POLL_INTERVAL_MS` | `300000` | How often the worker sweeps for missed comments (5 min). |
 | `COMMENT_POLL_MAX_PER_SWEEP` | `30` | Max new comments each campaign acts on per sweep. Keep it conservative; higher gets closer to Instagram's rate limits. |
 | `COMMENT_POLL_LOOKBACK_HOURS` | `72` | How far back a sweep considers comments. |

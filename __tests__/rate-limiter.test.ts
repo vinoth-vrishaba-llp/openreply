@@ -7,7 +7,8 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { mockGet, mockEval, mockDel, mockDecr } = vi.hoisted(() => ({
+const { mockGet, mockEval, mockDel, mockDecr, mockFindAccount } = vi.hoisted(() => ({
+  mockFindAccount: vi.fn(),
   mockGet: vi.fn(),
   mockEval: vi.fn(),
   mockDel: vi.fn(),
@@ -27,6 +28,10 @@ vi.mock("ioredis", () => {
   return { default: MockRedis };
 });
 
+vi.mock("@/lib/db/client", () => ({
+  prisma: { instagramAccount: { findUnique: mockFindAccount } },
+}));
+
 vi.stubEnv("REDIS_URL", "redis://localhost:6379");
 
 import {
@@ -39,6 +44,9 @@ import {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.unstubAllEnvs();
+  vi.stubEnv("REDIS_URL", "redis://localhost:6379");
+  mockFindAccount.mockResolvedValue({ hourlyDmCap: null });
 });
 
 describe("checkRateLimit", () => {
@@ -103,6 +111,52 @@ describe("reserveDMSlot", () => {
     expect(result.reserved).toBe(true);
     expect(result.currentCount).toBe(51);
     expect(result.remainingDMs).toBe(139);
+  });
+
+  it("uses the account's own cap when one is set", async () => {
+    mockFindAccount.mockResolvedValue({ hourlyDmCap: 200 });
+    mockEval.mockResolvedValue([1, 1, 199]);
+
+    await reserveDMSlot("account_123");
+
+    expect(mockEval).toHaveBeenCalledWith(
+      expect.any(String), 1, "rate:dm:account_123", 200, 3600
+    );
+  });
+
+  it("falls back to DM_HOURLY_CAP when the account has no cap", async () => {
+    vi.stubEnv("DM_HOURLY_CAP", "250");
+    mockEval.mockResolvedValue([1, 1, 249]);
+
+    await reserveDMSlot("account_123");
+
+    expect(mockEval).toHaveBeenCalledWith(
+      expect.any(String), 1, "rate:dm:account_123", 250, 3600
+    );
+  });
+
+  it("never exceeds Meta's ceiling, even if configured higher", async () => {
+    vi.stubEnv("DM_HOURLY_CAP", "5000");
+    mockFindAccount.mockResolvedValue({ hourlyDmCap: 9999 });
+    mockEval.mockResolvedValue([1, 1, 749]);
+
+    await reserveDMSlot("account_123");
+
+    expect(mockEval).toHaveBeenCalledWith(
+      expect.any(String), 1, "rate:dm:account_123", RATE_LIMIT_MAX, 3600
+    );
+  });
+
+  it("keeps sending at the default cap if the cap lookup fails", async () => {
+    mockFindAccount.mockRejectedValue(new Error("db down"));
+    mockEval.mockResolvedValue([1, 1, 749]);
+
+    const result = await reserveDMSlot("account_123");
+
+    expect(result.allowed).toBe(true);
+    expect(mockEval).toHaveBeenCalledWith(
+      expect.any(String), 1, "rate:dm:account_123", RATE_LIMIT_MAX, 3600
+    );
   });
 
   it("should recommend requeue when the atomic reserve is denied", async () => {
